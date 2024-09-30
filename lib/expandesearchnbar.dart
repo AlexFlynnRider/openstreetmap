@@ -15,6 +15,10 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
   bool isCalendarExpanded = false;
   DateTime selectedDate = DateTime.now(); // Data selecionada no calendário
 
+  // Variáveis para controlar o número de adultos e crianças
+  int numberOfAdults = 1;
+  int numberOfChildren = 0;
+
   // Função para alternar a seleção do card
   void _toggleSelection(String type) {
     setState(() {
@@ -48,6 +52,19 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
         selectedDate = picked;
       });
     }
+  }
+
+  // Função para aumentar ou diminuir o número de adultos/crianças
+  void _updateCount(String type, int change) {
+    setState(() {
+      if (type == 'adults') {
+        numberOfAdults =
+            (numberOfAdults + change).clamp(1, 10); // Limita de 1 a 10
+      } else if (type == 'children') {
+        numberOfChildren =
+            (numberOfChildren + change).clamp(0, 10); // Limita de 0 a 10
+      }
+    });
   }
 
   @override
@@ -192,7 +209,7 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
             child: GestureDetector(
               onTap: _toggleCalendar,
               child: Card(
-                color: Colors.white,
+                color: Colors.white, // Define o card como branco
                 elevation: 4.0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.0),
@@ -229,14 +246,74 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: ListView(
-              children: [
-                ListTile(
-                  title: const Text('Europa'),
-                  leading: const Icon(Icons.map),
-                ),
-              ],
+          // Card para selecionar o número de adultos e crianças
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Card(
+              color: Colors.white, // Fundo branco
+              elevation: 4.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              child: Column(
+                children: [
+                  const ListTile(
+                    leading: Icon(Icons.group),
+                    title: Text('Quem', style: TextStyle(fontSize: 16.0)),
+                    subtitle: Text('Adicionar adultos e crianças'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Adultos',
+                                style: TextStyle(fontSize: 16.0)),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () => _updateCount('adults', -1),
+                                ),
+                                Text(numberOfAdults.toString(),
+                                    style: const TextStyle(fontSize: 16.0)),
+                                IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: () => _updateCount('adults', 1),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Crianças',
+                                style: TextStyle(fontSize: 16.0)),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () => _updateCount('children', -1),
+                                ),
+                                Text(numberOfChildren.toString(),
+                                    style: const TextStyle(fontSize: 16.0)),
+                                IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: () => _updateCount('children', 1),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -253,6 +330,8 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
                       isArSelected = false;
                       selectedDate =
                           DateTime.now(); // Reseta a data selecionada
+                      numberOfAdults = 1; // Reseta os valores
+                      numberOfChildren = 0;
                     });
                   },
                   child: const Text('Limpar tudo',
@@ -271,6 +350,8 @@ class _ExpandedSearchScreenState extends State<ExpandedSearchScreen> {
                       print("Busca por Ar");
                     }
                     print("Data selecionada: $selectedDate");
+                    print("Número de adultos: $numberOfAdults");
+                    print("Número de crianças: $numberOfChildren");
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
