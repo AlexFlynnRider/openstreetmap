@@ -1,24 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:location/location.dart';
+import 'package:location/location.dart'; // Certifique-se de que o pacote 'location' esteja incluído no pubspec.yaml
 import 'package:http/http.dart' as http;
+import 'package:openstreetmap/search_bar.dart';
 import 'dart:convert';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: MapScreen(),
-    );
-  }
-}
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -29,7 +15,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapController mapController = MapController();
-  LocationData? currentLocation;
+  LocationData? currentLocation; // Variável para armazenar a localização atual
   List<LatLng> routePoints = [];
   List<Marker> markers = [];
   final String orsApiKey =
@@ -38,30 +24,46 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _getCurrentLocation(); // Chama a função que obtém a localização ao iniciar
   }
 
+  // Obtém a localização atual do usuário
   Future<void> _getCurrentLocation() async {
     var location = Location();
 
+    // Verifica se o serviço de localização está habilitado e se o app tem permissões
+    bool serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        return;
+      }
+    }
+
+    PermissionStatus permissionGranted = await location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
+        return;
+      }
+    }
+
+    // Obtém a localização atual
     try {
       var userLocation = await location.getLocation();
       setState(() {
         currentLocation = userLocation;
-        markers.add(
-          Marker(
-            width: 80.0,
-            height: 80.0,
-            point: LatLng(userLocation.latitude!, userLocation.longitude!),
-            child: const Icon(Icons.person_pin_circle,
-                color: Colors.blue, size: 40.0),
-          ),
+        // Move o mapa para a localização atual
+        mapController.move(
+          LatLng(userLocation.latitude!, userLocation.longitude!),
+          15.0, // Nível de zoom inicial
         );
       });
     } on Exception {
       currentLocation = null;
     }
 
+    // Ouve as alterações na localização e atualiza a posição do mapa
     location.onLocationChanged.listen((LocationData newLocation) {
       setState(() {
         currentLocation = newLocation;
@@ -69,6 +71,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Obtém a rota entre dois pontos
   Future<void> _getRoute(LatLng destination) async {
     if (currentLocation == null) return;
 
@@ -96,57 +99,57 @@ class _MapScreenState extends State<MapScreen> {
         );
       });
     } else {
-      print('Failed to fetch route');
+      print('Falha ao buscar a rota');
     }
   }
 
-  void _addDestinationMarker(LatLng point) {
-    setState(() {
-      markers.add(
-        Marker(
-          width: 80.0,
-          height: 80.0,
-          point: point,
-          child: const Icon(Icons.location_on, color: Colors.red, size: 40.0),
-        ),
-      );
-    });
-    _getRoute(point);
-  }
+  // Adiciona um marcador no mapa
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: currentLocation == null
-          ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                initialCenter: LatLng(
-                    currentLocation!.latitude!, currentLocation!.longitude!),
-                initialZoom: 15.0,
-                onTap: (tapPosition, point) => _addDestinationMarker(point),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      "https://tile.openstreetmap.org/{z}/{x}/{y}.png", // Atualizado sem subdomínios
-                  subdomains: const [], // Remover subdomínios
-                ),
-                MarkerLayer(
-                  markers: markers,
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: routePoints,
-                      strokeWidth: 4.0,
-                      color: Colors.blue,
-                    ),
-                  ],
-                ),
-              ],
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: mapController,
+            options: MapOptions(
+              initialCenter: currentLocation != null
+                  ? LatLng(
+                      currentLocation!.latitude!, currentLocation!.longitude!)
+                  : LatLng(0.0,
+                      0.0), // Centraliza em 0.0, 0.0 até obter a localização
+              initialZoom: 15.0,
             ),
+            children: [
+              TileLayer(
+                urlTemplate:
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png", // Usar subdomínio correto
+                subdomains: const [], // Remove subdomínios
+              ),
+              MarkerLayer(
+                markers: markers,
+              ),
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: routePoints,
+                    strokeWidth: 4.0,
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Barra de busca sobre o mapa
+          Positioned(
+            top: 60.0,
+            left: 10.0,
+            right: 10.0,
+            child: CustomSearchBar(),
+          ),
+        ],
+      ),
+      // Botão para centralizar o mapa na localização atual do usuário
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (currentLocation != null) {
